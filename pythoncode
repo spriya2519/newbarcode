@@ -1,0 +1,28 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import Optional
+
+app = FastAPI()
+
+# Dummy database
+items_db = [
+    {"partno": "P001", "desc": "Bolt", "qty": 10, "gr_no": "GR123", "comment": "", "accepted": None},
+    {"partno": "P002", "desc": "Nut", "qty": 5, "gr_no": "GR124", "comment": "", "accepted": None},
+]
+
+class ItemUpdate(BaseModel):
+    partno: str
+    comment: str
+    accepted: Optional[bool] = None
+    staffNo: str
+
+@app.get("/items")
+def get_items(name: str, staffNo: str, date: str):
+    # you can use these params to filter from DB
+    return items_db
+
+@app.post("/update_item")
+def update_item(item: ItemUpdate):
+    print("Received update:", item)
+    # In real case, you'd update DB here
+    return {"status": "success", "message": "Item updated"}
