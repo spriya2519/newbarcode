@@ -1,0 +1,95 @@
+import json
+import pandas as pd
+import ollama
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from pptx import Presentation
+from pptx.util import Inches, Pt
+
+MODEL = "llama3.2"
+
+# 1. Load JSON -> table
+with open("data.json") as f:
+    data = json.load(f)
+df = pd.json_normalize(data)
+df.to_csv("summary.csv", index=False)
+df.to_excel("summary.xlsx", index=False)
+
+# 2. Generate summary with Ollama
+sample = df.head(100).to_csv(index=False)   # limit size for small models
+stats = df.describe(include="all").to_string()
+
+prompt = f"""You are a data analyst. Write a concise summary report with:
+1. Overview (2-3 sentences)
+2. Key findings (4-5 bullet points starting with '- ')
+3. Recommendations (2-3 bullet points starting with '- ')
+
+Data (CSV):
+{sample}
+
+Statistics:
+{stats}
+"""
+resp = ollama.chat(model=MODEL, messages=[{"role": "user", "content": prompt}])
+summary = resp["message"]["content"].strip()
+print(summary)
+
+rows = [df.columns.tolist()] + df.astype(str).values.tolist()
+
+# 3. PDF
+styles = getSampleStyleSheet()
+story = [Paragraph("Summary Report", styles["Title"]), Spacer(1, 12)]
+for line in summary.split("\n"):
+    if line.strip():
+        line = line.replace("**", "").replace("&", "&amp;")
+        story.append(Paragraph(line, styles["Normal"]))
+        story.append(Spacer(1, 4))
+story.append(Spacer(1, 12))
+
+tbl = Table(rows, repeatRows=1)
+tbl.setStyle(TableStyle([
+    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2F5597")),
+    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F2F2F2")]),
+    ("FONTSIZE", (0, 0), (-1, -1), 8),
+]))
+story.append(tbl)
+SimpleDocTemplate("summary.pdf", pagesize=A4).build(story)
+
+# 4. PPT
+prs = Presentation()
+
+s = prs.slides.add_slide(prs.slide_layouts[0])
+s.shapes.title.text = "Summary Report"
+s.placeholders[1].text = f"{len(df)} records"
+
+# Summary slide
+s = prs.slides.add_slide(prs.slide_layouts[1])
+s.shapes.title.text = "Summary"
+tf = s.placeholders[1].text_frame
+tf.clear()
+lines = [l.replace("**", "").lstrip("-• ").strip() for l in summary.split("\n") if l.strip()]
+for i, l in enumerate(lines[:10]):
+    p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+    p.text = l
+    p.font.size = Pt(16)
+
+# Table slides
+MAX_ROWS = 10
+for i in range(0, len(df), MAX_ROWS):
+    chunk = rows[:1] + rows[1 + i : 1 + i + MAX_ROWS]
+    s = prs.slides.add_slide(prs.slide_layouts[5])
+    s.shapes.title.text = "Data Table"
+    shape = s.shapes.add_table(len(chunk), len(chunk[0]),
+                               Inches(0.5), Inches(1.5), Inches(9), Inches(0.4) * len(chunk))
+    for r, row in enumerate(chunk):
+        for c, val in enumerate(row):
+            cell = shape.table.cell(r, c)
+            cell.text = val
+            cell.text_frame.paragraphs[0].font.size = Pt(11)
+
+prs.save("summary.pptx")
+print("Done: summary.csv, summary.xlsx, summary.pdf, summary.pptx")
