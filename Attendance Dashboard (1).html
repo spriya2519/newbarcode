@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attendance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#eef2f0;--card:#fff;--ink:#14201c;--mute:#5d6b66;--line:#d9e0dd;--sel:#0f5c4d;--selink:#fff;
+--p:#1f8a5b;--o:#2f6fb5;--s:#d08a0e;--t:#7a5ab8;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1714;--card:#18231f;--ink:#e8f0ec;--mute:#92a39c;--line:#2a3a34;--sel:#3fb48f;--selink:#06231a;--p:#3fbf86;--o:#5a9be0;--s:#e4a73a;--t:#a587e3;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1714;--card:#18231f;--ink:#e8f0ec;--mute:#92a39c;--line:#2a3a34;--sel:#3fb48f;--selink:#06231a;--p:#3fbf86;--o:#5a9be0;--s:#e4a73a;--t:#a587e3;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 "IBM Plex Sans",system-ui,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+h1{font-size:24px;font-weight:600;margin:0}
+.date{color:var(--mute);font-size:14px}
+h2{font-size:15px;font-weight:600;margin:26px 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h2 small{font-weight:400;color:var(--mute);font-size:13px}
+.grid{display:grid;gap:10px}
+.cats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+button.cat{all:unset;cursor:pointer;background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:14px 16px;display:block}
+button.cat:focus-visible,tr.row:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+button.cat .n{font-size:30px;font-weight:600;line-height:1.1}
+button.cat .l{font-size:13px;color:var(--mute)}
+button.cat.on{background:var(--sel);border-color:var(--sel);color:var(--selink)}
+button.cat.on .l{color:var(--selink);opacity:.85}
+.stat{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:6px;padding:14px 16px}
+.stat .n{font-size:32px;font-weight:600;line-height:1.1}
+.stat .l{font-size:13px;color:var(--mute)}
+.stat .pc{font-size:12px;color:var(--c);font-weight:500}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th{text-align:left;font-weight:500;font-size:13px;color:var(--mute);padding:10px 14px;border-bottom:1px solid var(--line)}
+td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.row{cursor:pointer}
+tr.row:hover{background:color-mix(in srgb,var(--sel) 8%,transparent)}
+tr.row.on{background:color-mix(in srgb,var(--sel) 16%,transparent);box-shadow:inset 4px 0 0 var(--sel)}
+.bar{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line);min-width:140px}
+.bar i{display:block;height:100%}
+.pies{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+button.pie{all:unset;cursor:pointer;background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:14px 16px;display:block}
+button.pie:hover{border-color:var(--sel)}
+button.pie:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+button.pie.on{border-color:var(--sel);box-shadow:0 0 0 1.5px var(--sel)}
+.pie .ttl{font-weight:600}
+.donut{position:relative;width:132px;height:132px;border-radius:50%;margin:12px auto}
+.donut span{position:absolute;inset:30px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:600;font-size:20px}
+.pie ul{list-style:none;margin:0;padding:0;font-size:13px}
+.pie li{display:flex;align-items:center;padding:2px 0}
+.pie li b{width:10px;height:10px;border-radius:2px;margin-right:7px}
+.pie li em{font-style:normal;margin-left:auto;font-variant-numeric:tabular-nums;color:var(--mute)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-top:10px}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.clear{all:unset;cursor:pointer;color:var(--sel);font-size:13px;text-decoration:underline}
+.clear:focus-visible{outline:2px solid var(--sel)}
+</style></head><body><main>
+<header><div><h1>Company attendance</h1><div class="date" id="date"></div></div></header>
+
+<div class="grid cats" id="cats" role="group" aria-label="Employee category"></div>
+
+<h2>Today's status <small id="scope"></small></h2>
+<div class="grid stats" id="stats"></div>
+
+<h2>SBO-wise attendance <small>Select an SBO to filter everything above</small> <button class="clear" id="clr" hidden>Show all SBOs</button></h2>
+<div class="grid pies" id="pies"></div>
+<div class="legend" id="legend"></div>
+</main>
+<script>
+var CATS=["Executive","Non-executive","Trainee","Contract"];
+var SBOS=["Corporate","North","South","East","West","Projects"];
+var TOT={Corporate:[120,210,25,40],North:[180,420,60,90],South:[160,380,55,70],East:[140,310,40,60],West:[170,360,50,85],Projects:[90,260,30,150]};
+var ST=[["Present","p"],["Official out","o"],["Personal out","s"],["On tour","t"]];
+var D={};
+SBOS.forEach(function(s,i){D[s]=CATS.map(function(c,j){
+  var t=TOT[s][j],r=((i*7+j*13)%9)/100;
+  var off=Math.round(t*(0.05+r/2)),per=Math.round(t*(0.04+r/3)),tour=Math.round(t*(j==0?0.09:j==3?0.05:0.03)+i%3);
+  return [t-off-per-tour,off,per,tour];});});
+var selC=new Set(CATS.keys()),selS=null;
+function sum(cf,sf){var a=[0,0,0,0];SBOS.forEach(function(s){if(sf&&sf!==s)return;D[s].forEach(function(v,j){if(cf&&!selC.has(j))return;v.forEach(function(x,k){a[k]+=x})})});return a}
+function tot(a){return a[0]+a[1]+a[2]+a[3]}
+function $(i){return document.getElementById(i)}
+function render(){
+  $("date").textContent="Friday, 27 November 2026 · sample data";
+  $("cats").innerHTML=CATS.map(function(c,j){var a=[0,0,0,0];SBOS.forEach(function(s){if(selS&&selS!==s)return;D[s][j].forEach(function(x,k){a[k]+=x})});
+    return '<button class="cat'+(selC.has(j)?' on':'')+'" data-c="'+j+'" aria-pressed="'+selC.has(j)+'"><div class="n">'+tot(a).toLocaleString()+'</div><div class="l">'+c+'</div></button>'}).join("");
+  var a=sum(true,selS),T=tot(a);
+  $("stats").innerHTML=ST.map(function(s,k){return '<div class="stat" style="--c:var(--'+s[1]+')"><div class="n">'+a[k].toLocaleString()+'</div><div class="l">'+s[0]+'</div><div class="pc">'+(T?Math.round(a[k]/T*100):0)+'%</div></div>'}).join("");
+  var cn=selC.size===CATS.length?"All categories":CATS.filter(function(_,j){return selC.has(j)}).join(", ");
+  $("scope").textContent=cn+" · "+(selS||"All SBOs")+" · "+T.toLocaleString()+" people";
+  $("pies").innerHTML=SBOS.map(function(s){var v=sum(true,s),t=tot(v),acc=0,stops=v.map(function(x,k){var a=t?acc/t*100:0;acc+=x;return 'var(--'+ST[k][1]+') '+a+'% '+(t?acc/t*100:0)+'%'}).join(",");
+    return '<button class="pie'+(selS===s?' on':'')+'" data-s="'+s+'" aria-pressed="'+(selS===s)+'"><div class="ttl">'+s+'</div><div class="donut" style="background:conic-gradient('+stops+')"><span>'+t.toLocaleString()+'</span></div><ul>'+v.map(function(x,k){return '<li><b style="background:var(--'+ST[k][1]+')"></b>'+ST[k][0]+'<em>'+x+' · '+(t?Math.round(x/t*100):0)+'%</em></li>'}).join("")+'</ul></button>'}).join("");
+  $("clr").hidden=!selS;
+  $("legend").innerHTML=ST.map(function(s){return '<span><b style="background:var(--'+s[1]+')"></b>'+s[0]+'</span>'}).join("");
+}
+$("cats").onclick=function(e){var b=e.target.closest("button");if(!b)return;var j=+b.dataset.c;
+  if(selC.size===CATS.length){selC=new Set([j])}else{selC.has(j)?selC.delete(j):selC.add(j);if(!selC.size)selC=new Set(CATS.keys())}render()};
+function pick(e){var r=e.target.closest("button.pie");if(!r)return;selS=selS===r.dataset.s?null:r.dataset.s;render()}
+$("pies").onclick=pick;
+$("clr").onclick=function(){selS=null;render()};
+render();
+</script></body></html>
